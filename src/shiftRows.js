@@ -1,4 +1,5 @@
 "use strict";
+
 function shiftRows(state) {
   const out = new Uint8Array(16);
   for (let row = 0; row < 4; row++) {

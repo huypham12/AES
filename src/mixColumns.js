@@ -1,6 +1,7 @@
 "use strict";
 
 const { gfMultiply } = require("./utils");
+
 function mixColumns(state) {
   const out = new Uint8Array(16);
   for (let col = 0; col < 4; col++) {

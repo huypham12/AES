@@ -27,6 +27,7 @@ async function processSingleFile(aes, inputPath, outputRoot) {
   console.log(`Original size (bytes): ${original.length}`);
 
   const padded = pkcs7Pad(Uint8Array.from(original), 16);
+
   const ivForBenchmark = randomBytes(16);
 
   const encryptedCore = new Uint8Array(padded.length);

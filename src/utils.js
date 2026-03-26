@@ -1,4 +1,5 @@
 "use strict";
+
 function toBytes(input) {
   if (Buffer.isBuffer(input)) return Uint8Array.from(input);
   if (input instanceof Uint8Array) return Uint8Array.from(input);
@@ -6,9 +7,7 @@ function toBytes(input) {
     return Uint8Array.from(Buffer.from(input, "utf8"));
   throw new TypeError("Input must be a Buffer, Uint8Array, or string");
 }
-function bytesToUtf8(bytes) {
-  return Buffer.from(bytes).toString("utf8");
-}
+
 function hexToBytes(hex) {
   const clean = hex.replace(/\s+/g, "").toLowerCase();
   if (clean.length % 2 !== 0) throw new Error("Invalid hex string");
@@ -21,9 +20,7 @@ function hexToBytes(hex) {
   }
   return out;
 }
-function bytesToHex(bytes) {
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
+
 function xorBytes(a, b) {
   if (a.length !== b.length)
     throw new Error("XOR requires equal-length arrays");
@@ -31,9 +28,11 @@ function xorBytes(a, b) {
   for (let i = 0; i < a.length; i++) out[i] = a[i] ^ b[i];
   return out;
 }
+
 function rotWord(word4) {
   return new Uint8Array([word4[1], word4[2], word4[3], word4[0]]);
 }
+
 function subWord(word4, sBox) {
   return new Uint8Array([
     sBox[word4[0]],
@@ -42,6 +41,7 @@ function subWord(word4, sBox) {
     sBox[word4[3]],
   ]);
 }
+
 function pkcs7Pad(data, blockSize = 16) {
   const remainder = data.length % blockSize;
   const padLen = remainder === 0 ? blockSize : blockSize - remainder;
@@ -63,6 +63,7 @@ function pkcs7Unpad(data, blockSize = 16) {
   }
   return data.slice(0, data.length - padLen);
 }
+
 function gfMultiply(a, b) {
   let p = 0;
   let aa = a & 0xff;
@@ -76,6 +77,7 @@ function gfMultiply(a, b) {
   }
   return p & 0xff;
 }
+
 function randomBytes(length) {
   if (!Number.isInteger(length) || length <= 0) {
     throw new Error("randomBytes length must be a positive integer");
@@ -89,9 +91,7 @@ function randomBytes(length) {
 
 module.exports = {
   toBytes,
-  bytesToUtf8,
   hexToBytes,
-  bytesToHex,
   xorBytes,
   rotWord,
   subWord,
