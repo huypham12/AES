@@ -9,43 +9,37 @@ const {
   pkcs7Pad,
   pkcs7Unpad,
   toBytes,
-  hexToBytes,
   xorBytes,
   randomBytes,
 } = require("./utils");
 
-class AES128 {
+class AES {
   constructor(key) {
-    let keyBytes;
+    const keyBytes = toBytes(key);
 
-    if (typeof key === "string") {
-      const clean = key.replace(/\s+/g, "");
-      const isHex = /^[0-9a-fA-F]+$/.test(clean);
-
-      if (isHex && clean.length === 32) {
-        keyBytes = hexToBytes(clean);
-      } else {
-        keyBytes = toBytes(key);
-      }
-    } else {
-      keyBytes = toBytes(key);
-    }
-
-    if (keyBytes.length !== 16) {
-      throw new Error("AES-128 key must be exactly 16 bytes");
+    if (
+      keyBytes.length !== 16 &&
+      keyBytes.length !== 24 &&
+      keyBytes.length !== 32
+    ) {
+      throw new Error("AES key must be exactly 16, 24, or 32 bytes");
     }
 
     this.keyBytes = Uint8Array.from(keyBytes);
-    this.expandedKey = keyExpansion(this.keyBytes);
+    const { expandedKey, Nr } = keyExpansion(this.keyBytes);
+    this.expandedKey = expandedKey;
+    this.Nr = Nr;
   }
 
   encryptBlock(block16) {
     if (block16.length !== 16) throw new Error("Block must be 16 bytes");
     const state = Uint8Array.from(block16);
 
+    // trộn state với khóa bằng cách xor với key được sinh ở keyexpansion
     addRoundKey(state, getRoundKey(this.expandedKey, 0));
 
-    for (let round = 1; round <= 9; round++) {
+    // thực hiện các vòng mã hóa
+    for (let round = 1; round < this.Nr; round++) {
       subBytes(state);
       shiftRows(state);
       mixColumns(state);
@@ -54,7 +48,7 @@ class AES128 {
 
     subBytes(state);
     shiftRows(state);
-    addRoundKey(state, getRoundKey(this.expandedKey, 10));
+    addRoundKey(state, getRoundKey(this.expandedKey, this.Nr));
 
     return state;
   }
@@ -63,9 +57,9 @@ class AES128 {
     if (block16.length !== 16) throw new Error("Block must be 16 bytes");
     const state = Uint8Array.from(block16);
 
-    addRoundKey(state, getRoundKey(this.expandedKey, 10));
+    addRoundKey(state, getRoundKey(this.expandedKey, this.Nr));
 
-    for (let round = 9; round >= 1; round--) {
+    for (let round = this.Nr - 1; round >= 1; round--) {
       invShiftRows(state);
       invSubBytes(state);
       addRoundKey(state, getRoundKey(this.expandedKey, round));
@@ -83,12 +77,15 @@ class AES128 {
     const input = toBytes(bytes);
     const padded = pkcs7Pad(input, 16);
     const iv = randomBytes(16);
+    // Output = IV (16 bytes) || CBC ciphertext
     const out = new Uint8Array(16 + padded.length);
     out.set(iv, 0);
 
     let previous = iv;
     for (let offset = 0; offset < padded.length; offset += 16) {
-      const block = padded.slice(offset, offset + 16);
+      // Block plaintext đầu tiên sẽ được XOR với IV trước khi mã hóa.
+      //Sau đó: Mỗi block tiếp theo sẽ XOR với ciphertext của block trước.
+      const block = padded.subarray(offset, offset + 16);
       const xored = xorBytes(block, previous);
       const encrypted = this.encryptBlock(xored);
       out.set(encrypted, 16 + offset);
@@ -105,13 +102,13 @@ class AES128 {
       );
     }
 
-    const iv = input.slice(0, 16);
-    const ciphertext = input.slice(16);
+    const iv = input.subarray(0, 16);
+    const ciphertext = input.subarray(16);
     const out = new Uint8Array(ciphertext.length);
 
     let previous = iv;
     for (let offset = 0; offset < ciphertext.length; offset += 16) {
-      const block = ciphertext.slice(offset, offset + 16);
+      const block = ciphertext.subarray(offset, offset + 16);
       const decrypted = this.decryptBlock(block);
       const plainBlock = xorBytes(decrypted, previous);
       out.set(plainBlock, offset);
@@ -130,4 +127,4 @@ class AES128 {
   }
 }
 
-module.exports = { AES128 };
+module.exports = { AES };

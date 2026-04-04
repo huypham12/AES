@@ -82,19 +82,19 @@ function pkcs7Unpad(data, blockSize = 16) {
   return data.slice(0, data.length - padLen); // cắt bỏ phần padding để trả về data gốc
 }
 
-// nhân a với b trong trường GF(2^8) với đa thức bất khả quy m(x) = x^8 + x^4 + x^3 + x + 1 (0x11b)
+// nhân a với b trong trường GF(2^8) sau đó hạ bậc về >= x^7   bằng đa thức bất khả quy m(x) = x^8 + x^4 + x^3 + x + 1 (0x11b)
 function gfMultiply(a, b) {
   let p = 0;
   let aa = a & 0xff; // lấy đúng 1 byte của a, đảm bảo không bị tràn khi shift trái và XOR với 0x1b
   let bb = b & 0xff;
   for (let i = 0; i < 8; i++) {
-    if (bb & 1) p ^= aa;
-    const hiBitSet = aa & 0x80;
-    aa = (aa << 1) & 0xff;
-    if (hiBitSet) aa ^= 0x1b;
-    bb >>= 1;
+    if (bb & 1) p ^= aa; // nếu bit thấp nhất của b là 1 thì cộng (xor) aa vào kết quả p
+    const hiBitSet = aa & 0x80; // kiểm tra bit cao nhất của aa trước khi shift trái, nếu bit này là 1 thì sau khi shift trái sẽ vượt quá 8 bit và cần phải hạ bậc bằng cách XOR với 0x1b
+    aa = (aa << 1) & 0xff; // shift aa sang trái 1 bit, sau đó lấy đúng 1 byte để đảm bảo không bị tràn
+    if (hiBitSet) aa ^= 0x1b; // nếu bit cao nhất của aa trước đó là 1 thì sau khi shift trái sẽ vượt quá 8 bit, nên hạ bậc bằng cách XOR với 0x1b (đại diện cho đa thức m(x) = x^8 + x^4 + x^3 + x + 1)
+    bb >>= 1; // shift b sang phải 1 bit để chuẩn bị kiểm tra bit tiếp theo ở vòng lặp tiếp theo
   }
-  return p & 0xff;
+  return p & 0xff; // trả về kết quả cuối cùng sau khi đã nhân và hạ bậc, đảm bảo chỉ có 1 byte được trả về
 }
 
 // tạo một mảng byte ngẫu nhiên có độ dài nhất định, ví dụ randomBytes(4) sẽ trả về Uint8Array gồm 4 byte ngẫu nhiên như [0x3f, 0xa7, 0x1c, 0x9d]
@@ -103,9 +103,6 @@ function randomBytes(length) {
     throw new Error("randomBytes length must be a positive integer");
   }
   const out = new Uint8Array(length);
-  // NOTE: Uses Math.random, which is not cryptographically secure.
-  // This is kept to honor the constraint of not using the Node.js
-  // crypto module while still avoiding deterministic IVs.
   for (let i = 0; i < length; i++) {
     out[i] = Math.floor(Math.random() * 256) & 0xff;
   }
